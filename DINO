@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Developer - Dino Runner</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e1e2f 0%, #0f0f1a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ffffff;
+            padding: 20px;
+        }
+
+        .main-card {
+            background: #252538;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            max-width: 660px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid #3a3a52;
+        }
+
+        .profile-header {
+            margin-bottom: 20px;
+        }
+
+        .profile-header h1 {
+            font-size: 24px;
+            color: #00d2ff;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .profile-header p {
+            font-size: 14px;
+            color: #a0a0c0;
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #3a3a52;
+            color: #00ffcc;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        #game-container {
+            position: relative;
+            margin: 20px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #3a3a52;
+        }
+
+        canvas {
+            background-color: #1a1a26;
+            display: block;
+        }
+
+        .instructions {
+            color: #a0a0c0;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .instructions strong {
+            color: #00d2ff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-card">
+    <div class="profile-header">
+        <h1>I am a coding student</h1>
+        <p>- And this is my fisrt uploadable website in public -</p>
+        <span class="badge">&lt;/&gt; CODING STUDENT PROJECT</span>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="600" height="200"></canvas>
+    </div>
+
+    <div class="instructions">
+        Press <strong>Spacebar</strong>, <strong>Up Arrow</strong>, or <strong>Tap Canvas</strong> to Jump
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Game State
+    let isGameRunning = false;
+    let gameOver = false;
+    let score = 0;
+    let highScore = 0;
+    let frameCount = 0;
+    let gameSpeed = 5;
+
+    // Parallax Background Positions
+    let bgOffsetFar = 0;
+    let bgOffsetNear = 0;
+
+    // Dinosaur Player Object
+    const dino = {
+        x: 50,
+        y: 150,
+        width: 30,
+        height: 40,
+        dy: 0,
+        gravity: 0.6,
+        jumpPower: -10,
+        isGrounded: true,
+        draw() {
+            ctx.fillStyle = '#00d2ff';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Eye
+            ctx.fillStyle = '#1a1a26';
+            ctx.fillRect(this.x + 20, this.y + 6, 4, 4);
+        },
+        jump() {
+            if (this.isGrounded && !gameOver) {
+                this.dy = this.jumpPower;
+                this.isGrounded = false;
+            }
+        },
+        update() {
+            this.dy += this.gravity;
+            this.y += this.dy;
+
+            if (this.y + this.height >= 190) {
+                this.y = 190 - this.height;
+                this.dy = 0;
+                this.isGrounded = true;
+            }
+        }
+    };
+
+    // Obstacles Array
+    const obstacles = [];
+
+    function createObstacle() {
+        const height = Math.floor(Math.random() * 20) + 30;
+        obstacles.push({
+            x: canvas.width,
+            y: 190 - height,
+            width: 16,
+            height: height
+        });
+    }
+
+    function handleObstacles() {
+        if (frameCount % Math.max(60, 120 - Math.floor(score / 10)) === 0) {
+            createObstacle();
+        }
+
+        for (let i = 0; i < obstacles.length; i++) {
+            let obs = obstacles[i];
+            obs.x -= gameSpeed;
+
+            // Draw Cactus
+            ctx.fillStyle = '#ff0055';
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+            // Collision Check
+            if (
+                dino.x < obs.x + obs.width &&
+                dino.x + dino.width > obs.x &&
+                dino.y < obs.y + obs.height &&
+                dino.y + dino.height > obs.y
+            ) {
+                gameOver = true;
+            }
+
+            if (obs.x + obs.width < 0) {
+                obstacles.splice(i, 1);
+                i--;
+            }
+        }
+    }
+
+    // Dynamic Parallax Background
+    function drawBackground() {
+        bgOffsetFar -= gameSpeed * 0.2;
+        bgOffsetNear -= gameSpeed * 0.5;
+
+        if (bgOffsetFar <= -canvas.width) bgOffsetFar = 0;
+        if (bgOffsetNear <= -canvas.width) bgOffsetNear = 0;
+
+        // Distant Hills
+        ctx.fillStyle = '#232338';
+        for (let i = 0; i < 2; i++) {
+            ctx.beginPath();
+            ctx.arc(bgOffsetFar + (i * canvas.width) + 100, 190, 80, Math.PI, 0);
+            ctx.arc(bgOffsetFar + (i * canvas.width) + 350, 190, 120, Math.PI, 0);
+            ctx.fill();
+        }
+
+        // Closer Hills
+        ctx.fillStyle = '#2d2d48';
+        for (let i = 0; i < 2; i++) {
+            ctx.beginPath();
+            ctx.arc(bgOffsetNear + (i * canvas.width) + 200, 190, 60, Math.PI, 0);
+            ctx.arc(bgOffsetNear + (i * canvas.width) + 500, 190, 50, Math.PI, 0);
+            ctx.fill();
+        }
+
+        // Ground Line
+        ctx.strokeStyle = '#3a3a52';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 190);
+        ctx.lineTo(canvas.width, 190);
+        ctx.stroke();
+    }
+
+    function handleScore() {
+        score++;
+        if (score > highScore) highScore = score;
+        if (score % 200 === 0) gameSpeed += 0.5;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText(`HI ${Math.floor(highScore)}  ${Math.floor(score)}`, canvas.width - 130, 25);
+    }
+
+    function handleInput() {
+        if (gameOver) {
+            resetGame();
+        } else if (!isGameRunning) {
+            isGameRunning = true;
+            gameLoop();
+        } else {
+            dino.jump();
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp') handleInput();
+    });
+    canvas.addEventListener('touchstart', handleInput);
+
+    function resetGame() {
+        obstacles.length = 0;
+        score = 0;
+        gameSpeed = 5;
+        dino.y = 150;
+        dino.dy = 0;
+        gameOver = false;
+        isGameRunning = true;
+        gameLoop();
+    }
+
+    function drawStartScreen() {
+        drawBackground();
+        dino.draw();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = '16px monospace';
+        ctx.fillText('PRESS SPACE TO RUN CODE', canvas.width / 2 - 110, canvas.height / 2);
+    }
+
+    function drawGameOverScreen() {
+        ctx.fillStyle = '#ff0055';
+        ctx.font = '20px monospace';
+        ctx.fillText('SYSTEM CRASH (GAME OVER)', canvas.width / 2 - 130, canvas.height / 2 - 10);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '13px monospace';
+        ctx.fillText('Press Space to Reboot', canvas.width / 2 - 85, canvas.height / 2 + 20);
+    }
+
+    function gameLoop() {
+        if (gameOver) {
+            drawGameOverScreen();
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBackground();
+        dino.update();
+        dino.draw();
+
+        handleObstacles();
+        handleScore();
+
+        frameCount++;
+        requestAnimationFrame(gameLoop);
+    }
+
+    drawStartScreen();
+</script>
+</body>
+</html>
